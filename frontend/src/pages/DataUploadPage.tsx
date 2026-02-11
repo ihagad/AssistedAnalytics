@@ -6,6 +6,7 @@ import { analyzeDataset } from '../utils/diagnostics'
 import { Dataset, Diagnostic } from '../types'
 import DiagnosticsTable from '../components/DiagnosticsTable'
 import DiagnosticsSummary from '../components/DiagnosticsSummary'
+import { useDataset } from '../context/DatasetContext'
 
 export default function DataUploadPage() {
   const [datasets, setDatasets] = useState<Dataset[]>([])
@@ -14,6 +15,7 @@ export default function DataUploadPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const { setCurrentDataset } = useDataset()
 
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -55,6 +57,11 @@ export default function DataUploadPage() {
 
   const handleCreateNotebook = (dataset: Dataset) => {
     navigate(`/notebook/${encodeURIComponent(dataset.name)}`)
+  }
+
+  const handleViewAnalysis = (dataset: Dataset) => {
+    setCurrentDataset(dataset)
+    navigate(`/analysis/${dataset.id}`)
   }
 
   const handleDownload = (dataset: Dataset) => {
@@ -164,6 +171,12 @@ export default function DataUploadPage() {
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Download CSV
+                  </button>
+                  <button
+                    onClick={() => handleViewAnalysis(dataset)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    View Analysis
                   </button>
                   <button
                     onClick={() => handleCreateNotebook(dataset)}
