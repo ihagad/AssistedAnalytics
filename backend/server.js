@@ -1,5 +1,6 @@
 require('dotenv').config()
 const express = require('express')
+const path = require('path')
 const cors = require('cors')
 const { createClient } = require('@supabase/supabase-js')
 
@@ -16,14 +17,34 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-app.post('/api/save-dataset', async (req, res) => {
+// API routes (mounted first so they always win over static/catch-all)
+const api = require('express').Router()
+
+api.get('/health', async (req, res) => {
+  const supabaseConfigured = !!(SUPABASE_URL && SUPABASE_SERVICE_KEY)
+  let supabaseConnected = false
+  if (supabaseConfigured) {
+    try {
+      const { error } = await supabase.from('datasets').select('id').limit(1)
+      supabaseConnected = !error
+    } catch (_) {
+      // ignore
+    }
+  }
+  res.json({
+    ok: true,
+    supabase: supabaseConfigured ? (supabaseConnected ? 'connected' : 'configured_not_connected') : 'not_configured',
+  })
+})
+
+api.post('/save-dataset', async (req, res) => {
   try {
     const { dataset, userId } = req.body
     if (!dataset) return res.status(400).json({ error: 'dataset required' })
 
-    // store dataset metadata in a 'datasets' table
     const payload = {
       user_id: userId || null,
+      name: dataset.name || null,
       data: dataset,
     }
 
@@ -37,6 +58,18 @@ app.post('/api/save-dataset', async (req, res) => {
     console.error(err)
     return res.status(500).json({ error: 'internal error' })
   }
+})
+
+app.use('/api', api)
+
+// Serve frontend when built (e.g. on Railway with no separate frontend host)
+const frontendDist = path.join(__dirname, '../frontend/dist')
+app.use(express.static(frontendDist))
+app.get('*', (req, res, next) => {
+  const fs = require('fs')
+  const index = path.join(frontendDist, 'index.html')
+  if (fs.existsSync(index)) res.sendFile(index)
+  else next()
 })
 
 const port = process.env.PORT || 3001
